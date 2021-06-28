@@ -1,0 +1,80 @@
+---
+- hosts: localhost
+  connection: local
+  tasks: 
+    - name: Create resource group
+      azure_rm_resourcegroup:
+        name: pvc-rg
+        location: eastus
+      register: rg
+    - debug: 
+        var: rg
+
+---
+- hosts: localhost
+  connection: local
+  tasks:
+  - name: Create public IP address
+    azure_rm_publicipaddress: 
+      resource_group: rg-ansitest1
+      # allowcation_method: static
+      name: ansitest-IP1
+  - name: Create a network security group
+    azure_rm_securitygroup: 
+      resource_group: rg-ansitest1
+      name: ansitest-NSG1
+      rules: 
+        - name: SSH
+          protocol: Tcp
+          destination_port_range: 22
+          access: Allow
+          priority: 1001
+          direction: Inbound
+  - name: create virtual network interface card
+    azure_rm_networkinterface:
+      resource_group: rg-ansitest1
+      name: ansitest-NIC1
+      virtual_network: ansitest-vnet1
+      subnet: ansitest-sunet1
+      public_ip_name: ansitest-IP1
+      security_group: ansitest-NSG1
+
+
+      ---
+- hosts: localhost
+  connection: local
+  tasks:
+    - name: create virtual network
+      azure_rm_virtualnetwork: 
+        resource_group: rg-ansitest1
+        name: ansitest-vnet1
+        address_prefixes: "10.0.0.0/16"
+    - name: add subnet in vnet
+      azure_rm_subnet: 
+        resource_group: rg-ansitest1
+        name: ansitest-sunet1
+        address_prefix: "10.0.1.0/24"
+        virtual_network: ansitest-vnet1
+
+
+
+---
+- hosts: localhost
+  connection: local
+  tasks:
+    - name: Create VM
+      azure_rm_virtualmachine:
+        resource_group: rg-ansitest1
+        name: ansitest-vm1
+        vm_size: Standard_DS1_v2
+        admin_username: azureuser
+        ssh_password_enabled: false
+        ssh_public_keys:
+          - path: /home/azureuser/.ssh/authorized_keys
+            key_data: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDH8UCtITa3Zxq7XQJ1H4asfRe1ZrhJ1WoZ5FfKErGKfNeap5X/rEbvMAxIolpos2HlLUnMh7emrqoXNtI1v4o9IjimYIpeXX3IVeaPYlzkAF89tXq9yCJ3UP3j4nfHlsiVBlqEuzPq/UFlKIT79Syx1VhYmEYE9bb5z5WM0mzi+TBTpAYtRut/CW44TZR4FwM99Ml9h3nEpQKG9dP6ZzGLH9iJRjlJUYsWUb+Jh0BAhwJ8G4kur7nn3M+D8J8DyMh6/1e4huwORkvU0dqaPZYHTb/x/cxbS7Xdqna5hr2plvXVDWH01wTyGjGcEuGXkAXJvZDxOnDBsWgZj0JhY8Nl/9/zCPQaz+6SstoPx88u3zhro4/Okqv7sJjGC1B023oWDrMV493xknjaAoI5to3kY+14H9gnqdCip9gj9Uhlynsecn/RUeP45QjxOfOKqPPo/ClrcZZnRL9cJFPnc0ZYMW31ILRfumtrDIaqRd+FMZr57KFTu1eT9rQX6jksHKM= generated-by-azure"
+        network_interfaces: ansitest-NIC1
+        image:
+          offer: CentOS
+          publisher: OpenLogic
+          sku: '7.5'
+          version: latest`
